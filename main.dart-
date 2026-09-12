@@ -1,0 +1,361 @@
+import 'package:flutter/material.dart';
+import 'dart:async';
+
+void main() {
+  runApp(const BossTimerApp());
+}
+
+class Boss {
+  final int id;
+  final String name;
+  final String category;
+  DateTime? respawnTime;
+  final Duration respawnWindow;
+  final Duration? windowDuration;
+  String? updatedBy;
+
+  Boss({
+    required this.id,
+    required this.name,
+    required this.category,
+    required this.respawnWindow,
+    this.windowDuration,
+    this.respawnTime,
+    this.updatedBy,
+  });
+
+  bool get isDue {
+    final time = respawnTime;
+    if (time == null) return true;
+    return DateTime.now().isAfter(time);
+  }
+
+  bool get isWindowOpen {
+    final time = respawnTime;
+    final win = windowDuration;
+    if (win == null || time == null) return false;
+    final now = DateTime.now();
+    final windowEnd = time.add(win);
+    return now.isAfter(time) && now.isBefore(windowEnd);
+  }
+
+  Duration get timeRemaining {
+    final time = respawnTime;
+    if (time == null) return Duration.zero;
+    final remaining = time.difference(DateTime.now());
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  Duration get windowTimeLeft {
+    final time = respawnTime;
+    final win = windowDuration;
+    if (win == null || time == null) return Duration.zero;
+    final windowEnd = time.add(win);
+    final remaining = windowEnd.difference(DateTime.now());
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+}
+
+class BossTimerApp extends StatelessWidget {
+  const BossTimerApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Clan Antidote',
+      theme: ThemeData.dark(useMaterial3: true).copyWith(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.dark),
+      ),
+      home: const JoinRoomScreen(),
+    );
+  }
+}
+
+class JoinRoomScreen extends StatefulWidget {
+  const JoinRoomScreen({super.key});
+
+  @override
+  State<JoinRoomScreen> createState() => _JoinRoomScreenState();
+}
+
+class _JoinRoomScreenState extends State<JoinRoomScreen> {
+  final _roomController = TextEditingController();
+  final _passController = TextEditingController();
+  final _nameController = TextEditingController();
+
+  void _joinRoom() {
+    if (_roomController.text.isEmpty || _passController.text.isEmpty || _nameController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all fields')));
+      return;
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BossListScreen(
+          roomName: _roomController.text,
+          userName: _nameController.text,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Clan Antidote - Join Room (Test Mode)')),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Your In-game Name', border: OutlineInputBorder())),
+            const SizedBox(height: 15),
+            TextField(controller: _roomController, decoration: const InputDecoration(labelText: 'Room Name (Clan Name)', border: OutlineInputBorder())),
+            const SizedBox(height: 15),
+            TextField(controller: _passController, obscureText: true, decoration: const InputDecoration(labelText: 'Room Password', border: OutlineInputBorder())),
+            const SizedBox(height: 25),
+            ElevatedButton(
+              onPressed: _joinRoom,
+              style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+              child: const Text('JOIN / CREATE ROOM', style: TextStyle(fontSize: 16)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class BossListScreen extends StatefulWidget {
+  final String roomName;
+  final String userName;
+
+  const BossListScreen({super.key, required this.roomName, required this.userName});
+
+  @override
+  State<BossListScreen> createState() => _BossListScreenState();
+}
+
+class _BossListScreenState extends State<BossListScreen> {
+  Timer? _timer;
+
+  final List<Boss> bosses = [
+    // Warden
+    Boss(id: 1, name: 'Fellfire', category: 'Warden', respawnWindow: const Duration(minutes: 18)),
+    Boss(id: 2, name: 'Chillmist', category: 'Warden', respawnWindow: const Duration(minutes: 18)),
+    Boss(id: 3, name: 'Starspell', category: 'Warden', respawnWindow: const Duration(minutes: 18)),
+    Boss(id: 4, name: 'Spirehoof', category: 'Warden', respawnWindow: const Duration(minutes: 18)),
+    Boss(id: 5, name: 'Brutus', category: 'Warden', respawnWindow: const Duration(minutes: 18)),
+
+    // Meteor
+    Boss(id: 6, name: 'Goretusk', category: 'Meteor', respawnWindow: const Duration(minutes: 7)),
+    Boss(id: 7, name: 'Stonefang', category: 'Meteor', respawnWindow: const Duration(minutes: 5)),
+    Boss(id: 8, name: 'Bladewing', category: 'Meteor', respawnWindow: const Duration(minutes: 10)),
+    Boss(id: 9, name: 'Bonehead', category: 'Meteor', respawnWindow: const Duration(minutes: 7)),
+    Boss(id: 10, name: 'Ironscale', category: 'Meteor', respawnWindow: const Duration(minutes: 15)),
+    Boss(id: 11, name: 'Redbane', category: 'Meteor', respawnWindow: const Duration(minutes: 13)),
+    Boss(id: 12, name: 'Shivercowl', category: 'Meteor', respawnWindow: const Duration(minutes: 15)),
+    Boss(id: 13, name: 'Spearhorn', category: 'Meteor', respawnWindow: const Duration(minutes: 16)),
+    Boss(id: 14, name: 'Copp', category: 'Meteor', respawnWindow: const Duration(minutes: 15)),
+    Boss(id: 15, name: 'Rockbelly', category: 'Meteor', respawnWindow: const Duration(minutes: 15)),
+
+    // Frozen
+    Boss(id: 16, name: 'Eye', category: 'Frozen', respawnWindow: const Duration(minutes: 28)),
+    Boss(id: 17, name: 'Swampie', category: 'Frozen', respawnWindow: const Duration(minutes: 33)),
+    Boss(id: 18, name: 'Woody', category: 'Frozen', respawnWindow: const Duration(minutes: 38)),
+    Boss(id: 19, name: 'Chain', category: 'Frozen', respawnWindow: const Duration(minutes: 43)),
+    Boss(id: 20, name: 'Grom', category: 'Frozen', respawnWindow: const Duration(minutes: 48)),
+    Boss(id: 21, name: 'Pyrus', category: 'Frozen', respawnWindow: const Duration(minutes: 58)),
+
+    // DL
+    Boss(id: 22, name: 'Boss Lvl 150', category: 'DL', respawnWindow: const Duration(minutes: 58)),
+    Boss(id: 23, name: 'Boss Lvl 155', category: 'DL', respawnWindow: const Duration(hours: 1, minutes: 3)),
+    Boss(id: 24, name: 'Boss Lvl 160', category: 'DL', respawnWindow: const Duration(hours: 1, minutes: 8)),
+    Boss(id: 25, name: 'Boss Lvl 165', category: 'DL', respawnWindow: const Duration(hours: 1, minutes: 8)),
+    Boss(id: 26, name: 'Boss Lvl 170', category: 'DL', respawnWindow: const Duration(hours: 1, minutes: 13)),
+    Boss(id: 27, name: 'Boss Lvl 180', category: 'DL', respawnWindow: const Duration(hours: 1, minutes: 28)),
+
+    // EDL
+    Boss(id: 28, name: 'Boss Lvl 185', category: 'EDL', respawnWindow: const Duration(hours: 1, minutes: 22)),
+    Boss(id: 29, name: 'Boss Lvl 190', category: 'EDL', respawnWindow: const Duration(hours: 1, minutes: 31)),
+    Boss(id: 30, name: 'Boss Lvl 195', category: 'EDL', respawnWindow: const Duration(hours: 1, minutes: 39)),
+    Boss(id: 31, name: 'Boss Lvl 200', category: 'EDL', respawnWindow: const Duration(hours: 1, minutes: 48)),
+    Boss(id: 32, name: 'Boss Lvl 205', category: 'EDL', respawnWindow: const Duration(hours: 1, minutes: 57)),
+    Boss(id: 33, name: 'Boss Lvl 210', category: 'EDL', respawnWindow: const Duration(hours: 2, minutes: 5)),
+    Boss(id: 34, name: 'Boss Lvl 215', category: 'EDL', respawnWindow: const Duration(hours: 2, minutes: 14)),
+
+    // Mid Raid
+    Boss(id: 35, name: 'Aggy (Aggragoth)', category: 'Mid Raid', respawnWindow: const Duration(hours: 20), windowDuration: const Duration(hours: 12, minutes: 1)),
+    Boss(id: 36, name: 'Hrung', category: 'Mid Raid', respawnWindow: const Duration(hours: 22), windowDuration: const Duration(hours: 11, minutes: 42)),
+    Boss(id: 37, name: 'Mord', category: 'Mid Raid', respawnWindow: const Duration(hours: 20), windowDuration: const Duration(hours: 11, minutes: 54)),
+    Boss(id: 38, name: 'Necro', category: 'Mid Raid', respawnWindow: const Duration(hours: 22), windowDuration: const Duration(hours: 13, minutes: 7)),
+
+    // EG Raid
+    Boss(id: 39, name: 'Prot', category: 'EG Raid', respawnWindow: const Duration(hours: 18)),
+    Boss(id: 40, name: 'Gele', category: 'EG Raid', respawnWindow: const Duration(hours: 32)),
+    Boss(id: 41, name: 'BT', category: 'EG Raid', respawnWindow: const Duration(hours: 34)),
+    Boss(id: 42, name: 'Dino', category: 'EG Raid', respawnWindow: const Duration(hours: 34)),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String _formatDuration(Duration duration) {
+    return "${duration.inHours.toString().padLeft(2, '0')}:${(duration.inMinutes % 60).toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}";
+  }
+
+  void _killBoss(int index) {
+    setState(() {
+      bosses[index].respawnTime = DateTime.now().add(bosses[index].respawnWindow);
+      bosses[index].updatedBy = widget.userName;
+    });
+  }
+
+  void _setCustomMinutes(int index, int minutesLeft) {
+    setState(() {
+      bosses[index].respawnTime = DateTime.now().add(Duration(minutes: minutesLeft));
+      bosses[index].updatedBy = widget.userName;
+    });
+  }
+
+  void _showKillDialog(BuildContext context, int index, String bossName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Killed $bossName?'),
+        content: const Text('Are you sure you want to reset this boss timer?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              _killBoss(index);
+              Navigator.pop(context);
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSetTimeDialog(BuildContext context, int index, String bossName) {
+    final minsController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Set time for $bossName'),
+        content: TextField(
+          controller: minsController,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Minutes remaining to Due', border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final mins = int.tryParse(minsController.text);
+              if (mins != null && mins >= 0) {
+                _setCustomMinutes(index, mins);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Room: ${widget.roomName.toUpperCase()}'),
+        centerTitle: true,
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(8),
+        itemCount: bosses.length,
+        itemBuilder: (context, index) {
+          final boss = bosses[index];
+          final isDue = boss.isDue;
+          final isWindowOpen = boss.isWindowOpen;
+
+          return Card(
+            color: isDue ? Colors.green.shade900.withOpacity(0.3) : null,
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: isDue ? Colors.green : Colors.amber,
+                child: Icon(isDue ? Icons.check_circle : Icons.timer, color: Colors.black),
+              ),
+              title: Text(boss.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(boss.category, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  if (isDue && isWindowOpen)
+                    Text(
+                      'OPEN (${_formatDuration(boss.windowTimeLeft)} left)',
+                      style: const TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  if (boss.updatedBy != null)
+                    Text(
+                      'By: ${boss.updatedBy}',
+                      style: const TextStyle(color: Colors.lightBlueAccent, fontSize: 11, fontWeight: FontWeight.w500),
+                    ),
+                ],
+              ),
+              trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    isDue ? 'DUE' : _formatDuration(boss.timeRemaining),
+                    style: TextStyle(color: isDue ? Colors.greenAccent : Colors.orangeAccent, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        onTap: () => _showSetTimeDialog(context, index, boss.name),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(color: Colors.blue.shade700, borderRadius: BorderRadius.circular(4)),
+                          child: const Text('Set Mins', style: TextStyle(fontSize: 10, color: Colors.white)),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () => _showKillDialog(context, index, boss.name),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(color: Colors.red.shade700, borderRadius: BorderRadius.circular(4)),
+                          child: const Text('KILLED', style: TextStyle(fontSize: 10, color: Colors.white)),
+                        ),
+                      ),
+                    ],
+                  )
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
